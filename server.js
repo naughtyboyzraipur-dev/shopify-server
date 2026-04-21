@@ -4,7 +4,7 @@ const axios = require("axios");
 const app = express();
 app.use(express.json());
 
-// ✅ Phone format fix
+// Phone format fix
 function formatPhone(phone) {
   if (!phone) return null;
 
@@ -16,13 +16,17 @@ function formatPhone(phone) {
   return null;
 }
 
-// ✅ TEST ROUTE (debug)
-app.get("/test", (req, res) => {
-  console.log("🔥 Test route hit");
-  res.send("Test OK");
+// ROOT (important for Railway)
+app.get("/", (req, res) => {
+  res.send("Server running 🚀");
 });
 
-// ✅ WEBHOOK
+// TEST ROUTE
+app.get("/test", (req, res) => {
+  res.send("Test OK ✅");
+});
+
+// WEBHOOK
 app.post("/webhook", async (req, res) => {
   try {
     console.log("📦 Webhook received");
@@ -44,19 +48,10 @@ app.post("/webhook", async (req, res) => {
 
     const tracking = data.fulfillments?.[0]?.tracking_number;
 
-    // ❌ checks
-    if (!tracking) {
-      console.log("❌ No tracking");
-      return res.send("No AWB yet");
-    }
+    if (!tracking) return res.send("No AWB yet ❌");
+    if (!phone) return res.send("Invalid phone ❌");
 
-    if (!phone) {
-      console.log("❌ Invalid phone:", rawPhone);
-      return res.send("Invalid phone");
-    }
-
-    // ✅ Interakt API call
-    const response = await axios.post(
+    await axios.post(
       "https://api.interakt.ai/v1/public/message/",
       {
         countryCode: "+91",
@@ -66,9 +61,9 @@ app.post("/webhook", async (req, res) => {
           name: "order_dispatch",
           languageCode: "en",
           bodyValues: [
-            tracking,        // {{1}}
-            orderId,         // {{2}}
-            customerName     // {{3}}
+            tracking,
+            orderId,
+            customerName
           ]
         }
       },
@@ -80,7 +75,7 @@ app.post("/webhook", async (req, res) => {
       }
     );
 
-    console.log("✅ Message sent:", response.data);
+    console.log("✅ Message sent");
 
     res.send("Message Sent ✅");
 
@@ -90,11 +85,8 @@ app.post("/webhook", async (req, res) => {
   }
 });
 
-// ✅ ROOT ROUTE
-app.get("/", (req, res) => {
-  res.send("Server running 🚀");
-});
-
-// ✅ IMPORTANT FIX (Railway port)
+// 🔥 IMPORTANT (Railway fix)
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on ${PORT} 🚀`));
+app.listen(PORT, () => {
+  console.log(`Server running on ${PORT} 🚀`);
+});
