@@ -2,9 +2,19 @@ const express = require("express");
 const axios = require("axios");
 
 const app = express();
+
+// ✅ Railway important
+const PORT = process.env.PORT || 3000;
+
+// Middleware
 app.use(express.json());
 
-// Phone format fix
+// Health route (VERY IMPORTANT)
+app.get("/", (req, res) => {
+  res.send("Server running 🚀");
+});
+
+// Phone format
 function formatPhone(phone) {
   if (!phone) return null;
 
@@ -16,25 +26,14 @@ function formatPhone(phone) {
   return null;
 }
 
-// ROOT (important for Railway)
-app.get("/", (req, res) => {
-  res.send("Server running 🚀");
-});
-
-// TEST ROUTE
-app.get("/test", (req, res) => {
-  res.send("Test OK ✅");
-});
-
-// WEBHOOK
+// Webhook
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("📦 Webhook received");
+    console.log("🔥 Webhook hit:", req.body);
 
     const data = req.body;
 
-    const orderId = data.name?.replace("#", "") || "0000";
-
+    const orderId = data.name?.replace("#", "");
     const rawPhone =
       data.shipping_address?.phone ||
       data.customer?.phone;
@@ -48,7 +47,7 @@ app.post("/webhook", async (req, res) => {
 
     const tracking = data.fulfillments?.[0]?.tracking_number;
 
-    if (!tracking) return res.send("No AWB yet ❌");
+    if (!tracking) return res.send("No AWB ❌");
     if (!phone) return res.send("Invalid phone ❌");
 
     await axios.post(
@@ -75,18 +74,17 @@ app.post("/webhook", async (req, res) => {
       }
     );
 
-    console.log("✅ Message sent");
+    console.log("✅ Message sent:", phone);
 
-    res.send("Message Sent ✅");
+    res.send("Done ✅");
 
   } catch (err) {
     console.log("❌ ERROR:", err.response?.data || err.message);
-    res.status(500).send("Error ❌");
+    res.status(500).send("Error");
   }
 });
 
-// 🔥 IMPORTANT (Railway fix)
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server running on ${PORT} 🚀`);
+// START SERVER (IMPORTANT)
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Server running on port ${PORT}`);
 });
