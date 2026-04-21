@@ -3,70 +3,52 @@ const axios = require("axios");
 
 const app = express();
 
-// ✅ Railway PORT fix
-const PORT = process.env.PORT || 3000;
+// ⚠️ RAW body required for Shopify
+app.use(express.raw({ type: "application/json" }));
 
-// Middleware
-app.use(express.json());
-
-// ✅ Health check (IMPORTANT for Railway)
-app.get("/", (req, res) => {
-  res.send("Server running 🚀");
-});
-
-// ✅ Test route
+// 🔥 TEST ROUTE
 app.get("/test", (req, res) => {
   res.send("TEST OK ✅");
 });
 
-// ✅ Phone format function
+// ✅ Phone format fix
 function formatPhone(phone) {
   if (!phone) return null;
 
   phone = phone.replace(/\D/g, "");
 
   if (phone.length === 10) return phone;
-  if (phone.length === 12 && phone.startsWith("91")) {
-    return phone.slice(2);
-  }
+  if (phone.length === 12 && phone.startsWith("91")) return phone.slice(2);
 
   return null;
 }
 
-// ✅ Webhook
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("🔥 Webhook received");
+    console.log("🔥 Webhook hit");
 
-    const data = req.body || {};
+    const data = JSON.parse(req.body.toString());
 
-    const orderId = data.name?.replace("#", "") || "Order";
-
+    const orderId = data.name?.replace("#", "");
     const rawPhone =
-      data?.shipping_address?.phone ||
-      data?.customer?.phone;
+      data.shipping_address?.phone ||
+      data.customer?.phone;
 
     const phone = formatPhone(rawPhone);
 
     const customerName =
-      data?.shipping_address?.first_name ||
-      data?.customer?.first_name ||
+      data.shipping_address?.first_name ||
+      data.customer?.first_name ||
       "Customer";
 
-    const tracking = data?.fulfillments?.[0]?.tracking_number;
+    const fulfillment = data.fulfillments?.[0];
+    const tracking = fulfillment?.tracking_number;
 
-    // ❌ safety checks
-    if (!tracking) {
-      console.log("No tracking");
-      return res.send("No AWB ❌");
-    }
+    console.log("DATA:", orderId, phone, tracking);
 
-    if (!phone) {
-      console.log("Invalid phone:", rawPhone);
-      return res.send("Invalid phone ❌");
-    }
+    if (!tracking) return res.send("No AWB ❌");
+    if (!phone) return res.send("Invalid phone ❌");
 
-    // ✅ Send WhatsApp
     await axios.post(
       "https://api.interakt.ai/v1/public/message/",
       {
@@ -77,9 +59,9 @@ app.post("/webhook", async (req, res) => {
           name: "order_dispatch",
           languageCode: "en",
           bodyValues: [
-            tracking,        // {{1}}
-            orderId,         // {{2}}
-            customerName     // {{3}}
+            tracking,
+            orderId,
+            customerName
           ]
         }
       },
@@ -91,17 +73,19 @@ app.post("/webhook", async (req, res) => {
       }
     );
 
-    console.log("✅ Message sent to:", phone);
+    console.log("✅ Message sent");
 
-    res.send("Done ✅");
+    res.send("OK");
 
   } catch (err) {
-    console.log("❌ ERROR:", err.response?.data || err.message);
-    res.status(500).send("Server Error ❌");
+    console.log("❌ ERROR:", err.message);
+    res.status(200).send("Error handled"); // ⚠️ important
   }
 });
 
-// ✅ Start server (IMPORTANT)
-app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on ${PORT}`);
+// 🚀 PORT FIX (VERY IMPORTANT FOR RAILWAY)
+const PORT = process.env.PORT || 3000;
+
+app.listen(PORT, () => {
+  console.log("🚀 Server running on port", PORT);
 });
