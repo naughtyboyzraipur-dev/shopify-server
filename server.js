@@ -31,7 +31,7 @@ app.post("/webhook", async (req, res) => {
       }
     }, {
       headers: {
-        Authorization: "Bearer YOUR_API_KEY"
+        Authorization: "VUw2MVpVdnNaM3UzZHpsdDhYQmZENVhKcVV2QzdoTUw2bmhfTV9JdkFIdzo="
       }
     });
 
