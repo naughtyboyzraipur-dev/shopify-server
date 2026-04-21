@@ -31,6 +31,7 @@ app.post("/webhook", async (req, res) => {
 
     const orderId = data.name?.replace("#", "");
     const rawPhone =
+      data.customer?.default_address?.phone ||
       data.shipping_address?.phone ||
       data.customer?.phone;
 
