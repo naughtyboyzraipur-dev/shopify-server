@@ -16,17 +16,27 @@ function formatPhone(phone) {
   return null;
 }
 
+// ✅ TEST ROUTE (important debug)
+app.get("/test", (req, res) => {
+  console.log("🔥 Test route hit");
+  res.send("Test OK");
+});
+
+// ✅ WEBHOOK
 app.post("/webhook", async (req, res) => {
   try {
+    console.log("📦 Webhook received:", JSON.stringify(req.body, null, 2));
+
     const data = req.body;
 
-    // ✅ Extract data safely
-    const orderId = data.name?.replace("#", "");
+    const orderId = data.name?.replace("#", "") || "0000";
+
     const rawPhone =
       data.shipping_address?.phone ||
       data.customer?.phone;
 
     const phone = formatPhone(rawPhone);
+
     const customerName =
       data.shipping_address?.first_name ||
       data.customer?.first_name ||
@@ -35,18 +45,19 @@ app.post("/webhook", async (req, res) => {
     const fulfillment = data.fulfillments?.[0];
     const tracking = fulfillment?.tracking_number;
 
-    // ❌ Safety checks
-    if (!tracking) return res.send("No AWB yet ❌");
-    if (!phone) return res.send("Invalid phone ❌");
+    // ❌ IMPORTANT: Shopify sometimes nested structure deta hai
+    if (!tracking) {
+      console.log("❌ No tracking number yet");
+      return res.send("No AWB yet");
+    }
 
-    // ❌ Avoid duplicate messages
-    if (data.fulfillments?.length > 1) {
-      console.log("Multiple fulfillments detected, skipping ❌");
-      return res.send("Duplicate avoided");
+    if (!phone) {
+      console.log("❌ Invalid phone:", rawPhone);
+      return res.send("Invalid phone");
     }
 
     // ✅ Send WhatsApp message
-    await axios.post(
+    const response = await axios.post(
       "https://api.interakt.ai/v1/public/message/",
       {
         countryCode: "+91",
@@ -70,17 +81,17 @@ app.post("/webhook", async (req, res) => {
       }
     );
 
-    console.log("✅ Message sent to:", phone);
+    console.log("✅ Message sent:", response.data);
 
     res.send("Message Sent ✅");
 
   } catch (err) {
-    console.log("❌ ERROR:", err.response?.data || err.message);
+    console.log("❌ ERROR FULL:", err.response?.data || err.message);
     res.status(500).send("Error ❌");
   }
 });
 
-// ✅ Health check
+// ✅ ROOT ROUTE
 app.get("/", (req, res) => {
   res.send("Server running 🚀");
 });
