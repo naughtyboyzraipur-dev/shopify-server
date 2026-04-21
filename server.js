@@ -16,7 +16,7 @@ function formatPhone(phone) {
   return null;
 }
 
-// ✅ TEST ROUTE (important debug)
+// ✅ TEST ROUTE (debug)
 app.get("/test", (req, res) => {
   console.log("🔥 Test route hit");
   res.send("Test OK");
@@ -25,7 +25,7 @@ app.get("/test", (req, res) => {
 // ✅ WEBHOOK
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("📦 Webhook received:", JSON.stringify(req.body, null, 2));
+    console.log("📦 Webhook received");
 
     const data = req.body;
 
@@ -42,12 +42,11 @@ app.post("/webhook", async (req, res) => {
       data.customer?.first_name ||
       "Customer";
 
-    const fulfillment = data.fulfillments?.[0];
-    const tracking = fulfillment?.tracking_number;
+    const tracking = data.fulfillments?.[0]?.tracking_number;
 
-    // ❌ IMPORTANT: Shopify sometimes nested structure deta hai
+    // ❌ checks
     if (!tracking) {
-      console.log("❌ No tracking number yet");
+      console.log("❌ No tracking");
       return res.send("No AWB yet");
     }
 
@@ -56,7 +55,7 @@ app.post("/webhook", async (req, res) => {
       return res.send("Invalid phone");
     }
 
-    // ✅ Send WhatsApp message
+    // ✅ Interakt API call
     const response = await axios.post(
       "https://api.interakt.ai/v1/public/message/",
       {
@@ -86,7 +85,7 @@ app.post("/webhook", async (req, res) => {
     res.send("Message Sent ✅");
 
   } catch (err) {
-    console.log("❌ ERROR FULL:", err.response?.data || err.message);
+    console.log("❌ ERROR:", err.response?.data || err.message);
     res.status(500).send("Error ❌");
   }
 });
@@ -96,4 +95,6 @@ app.get("/", (req, res) => {
   res.send("Server running 🚀");
 });
 
-app.listen(3000, () => console.log("Server running 🚀"));
+// ✅ IMPORTANT FIX (Railway port)
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Server running on ${PORT} 🚀`));
