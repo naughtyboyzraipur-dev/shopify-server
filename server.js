@@ -20,19 +20,32 @@ app.post("/webhook", async (req, res) => {
   try {
     const data = req.body;
 
-    // ✅ Data extract
+    // ✅ Extract data safely
     const orderId = data.name?.replace("#", "");
-    const rawPhone = data.shipping_address?.phone;
-    const phone = formatPhone(rawPhone);
-    const customerName = data.shipping_address?.first_name;
+    const rawPhone =
+      data.shipping_address?.phone ||
+      data.customer?.phone;
 
-    const tracking = data.fulfillments?.[0]?.tracking_number;
+    const phone = formatPhone(rawPhone);
+    const customerName =
+      data.shipping_address?.first_name ||
+      data.customer?.first_name ||
+      "Customer";
+
+    const fulfillment = data.fulfillments?.[0];
+    const tracking = fulfillment?.tracking_number;
 
     // ❌ Safety checks
     if (!tracking) return res.send("No AWB yet ❌");
     if (!phone) return res.send("Invalid phone ❌");
 
-    // ✅ Interakt API call
+    // ❌ Avoid duplicate messages
+    if (data.fulfillments?.length > 1) {
+      console.log("Multiple fulfillments detected, skipping ❌");
+      return res.send("Duplicate avoided");
+    }
+
+    // ✅ Send WhatsApp message
     await axios.post(
       "https://api.interakt.ai/v1/public/message/",
       {
@@ -43,9 +56,9 @@ app.post("/webhook", async (req, res) => {
           name: "order_dispatch",
           languageCode: "en",
           bodyValues: [
-            tracking,        // {{1}} AWB
-            orderId,         // {{2}} Order ID
-            customerName     // {{3}} Name
+            tracking,        // {{1}}
+            orderId,         // {{2}}
+            customerName     // {{3}}
           ]
         }
       },
@@ -57,17 +70,17 @@ app.post("/webhook", async (req, res) => {
       }
     );
 
-    console.log("Message sent to:", phone);
+    console.log("✅ Message sent to:", phone);
 
     res.send("Message Sent ✅");
 
   } catch (err) {
-    console.log("ERROR:", err.response?.data || err.message);
+    console.log("❌ ERROR:", err.response?.data || err.message);
     res.status(500).send("Error ❌");
   }
 });
 
-// ✅ Health check (browser me open karne ke liye)
+// ✅ Health check
 app.get("/", (req, res) => {
   res.send("Server running 🚀");
 });
