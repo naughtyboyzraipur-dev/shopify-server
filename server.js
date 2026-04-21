@@ -3,53 +3,70 @@ const axios = require("axios");
 
 const app = express();
 
-// ✅ Railway important
+// ✅ Railway PORT fix
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(express.json());
 
-// Health route (VERY IMPORTANT)
+// ✅ Health check (IMPORTANT for Railway)
 app.get("/", (req, res) => {
   res.send("Server running 🚀");
 });
 
-// Phone format
+// ✅ Test route
+app.get("/test", (req, res) => {
+  res.send("TEST OK ✅");
+});
+
+// ✅ Phone format function
 function formatPhone(phone) {
   if (!phone) return null;
 
   phone = phone.replace(/\D/g, "");
 
   if (phone.length === 10) return phone;
-  if (phone.length === 12 && phone.startsWith("91")) return phone.slice(2);
+  if (phone.length === 12 && phone.startsWith("91")) {
+    return phone.slice(2);
+  }
 
   return null;
 }
 
-// Webhook
+// ✅ Webhook
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("🔥 Webhook hit:", req.body);
+    console.log("🔥 Webhook received");
 
-    const data = req.body;
+    const data = req.body || {};
 
-    const orderId = data.name?.replace("#", "");
+    const orderId = data.name?.replace("#", "") || "Order";
+
     const rawPhone =
-      data.shipping_address?.phone ||
-      data.customer?.phone;
+      data?.shipping_address?.phone ||
+      data?.customer?.phone;
 
     const phone = formatPhone(rawPhone);
 
     const customerName =
-      data.shipping_address?.first_name ||
-      data.customer?.first_name ||
+      data?.shipping_address?.first_name ||
+      data?.customer?.first_name ||
       "Customer";
 
-    const tracking = data.fulfillments?.[0]?.tracking_number;
+    const tracking = data?.fulfillments?.[0]?.tracking_number;
 
-    if (!tracking) return res.send("No AWB ❌");
-    if (!phone) return res.send("Invalid phone ❌");
+    // ❌ safety checks
+    if (!tracking) {
+      console.log("No tracking");
+      return res.send("No AWB ❌");
+    }
 
+    if (!phone) {
+      console.log("Invalid phone:", rawPhone);
+      return res.send("Invalid phone ❌");
+    }
+
+    // ✅ Send WhatsApp
     await axios.post(
       "https://api.interakt.ai/v1/public/message/",
       {
@@ -60,9 +77,9 @@ app.post("/webhook", async (req, res) => {
           name: "order_dispatch",
           languageCode: "en",
           bodyValues: [
-            tracking,
-            orderId,
-            customerName
+            tracking,        // {{1}}
+            orderId,         // {{2}}
+            customerName     // {{3}}
           ]
         }
       },
@@ -74,17 +91,17 @@ app.post("/webhook", async (req, res) => {
       }
     );
 
-    console.log("✅ Message sent:", phone);
+    console.log("✅ Message sent to:", phone);
 
     res.send("Done ✅");
 
   } catch (err) {
     console.log("❌ ERROR:", err.response?.data || err.message);
-    res.status(500).send("Error");
+    res.status(500).send("Server Error ❌");
   }
 });
 
-// START SERVER (IMPORTANT)
+// ✅ Start server (IMPORTANT)
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on ${PORT}`);
 });
